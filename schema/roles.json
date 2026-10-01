@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Pilot and user roles",
+  "description": "Role vocabulary for krok 13. Shared pilot code maps to reviewer (or emergency admin when USER_AUTH_ENABLED).",
+  "roles": ["viewer", "reviewer", "admin"],
+  "pilot_default_role": "reviewer",
+  "permissions_draft": {
+    "viewer": ["read_examples", "read_completed_catalog"],
+    "reviewer": ["read_examples", "write_evaluation", "run_pipeline", "export_pdf"],
+    "admin": ["read_examples", "write_evaluation", "run_pipeline", "export_pdf", "manage_users", "delete_evaluation"]
+  }
+}

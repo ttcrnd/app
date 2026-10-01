@@ -1,0 +1,64 @@
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+extend-exclude = '''
+/(
+  ^\.venv($|/)
+  | ^out($|/)
+  | ^out\ copy($|/)
+  | ^__pycache__($|/)
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-exclude = [
+  ".venv",
+  "out",
+  "out copy",
+  "__pycache__",
+]
+
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle errors
+  "F",  # pyflakes
+  "I",  # import sorting
+  "B",  # flake8-bugbear
+  "UP", # pyupgrade
+]
+ignore = [
+  "E501",  # line length handled by Black
+  "E741",  # ambiguous variable names (opt-out for legacy code)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+filterwarnings = [
+  # Starlette TestClient still references deprecated anyio alias; fixed upstream later.
+  "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning:starlette.testclient",
+]
+
+[tool.mypy]
+python_version = "3.9"
+files = [
+  "server.py",
+  "run_all.py",
+  "utils",
+  "db",
+  "review_app",
+  "tests",
+]
+ignore_missing_imports = true
+pretty = true
+warn_unused_ignores = true
+warn_redundant_casts = true

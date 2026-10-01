@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="cs">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NÚKIB OSS reviewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+    <header class="app-header">
+        <div class="app-header__brand">
+            <strong class="app-header__wordmark">NÚKIB OSS reviewer</strong>
+            <span class="app-header__subtitle muted small">TTC Marconi</span>
+        </div>
+        <nav class="app-nav" aria-label="Hlavní navigace">
+            <button type="button" class="app-nav__btn is-active" id="navHomeBtn" data-view="home">Knihovny</button>
+            <button type="button" class="app-nav__btn" id="navWorkBtn" data-view="work" disabled>Hodnocení</button>
+            <button type="button" class="app-nav__btn" id="navUsersBtn" data-view="users" hidden>Uživatelé</button>
+        </nav>
+        <div class="app-header__status">
+            <span id="authRoleBadge" class="auth-role-badge" hidden></span>
+            <button type="button" id="authHeaderBtn" class="btn-ghost auth-header-btn" hidden>Vstoupit</button>
+            <span id="status" class="muted status" role="status" aria-live="polite"></span>
+        </div>
+    </header>
+
+    <div id="authGate" class="auth-gate" hidden>
+        <div class="auth-gate__card">
+            <p class="auth-gate__brand">NÚKIB OSS reviewer</p>
+            <h1 class="auth-gate__title">Vstup</h1>
+            <p class="auth-gate__lead muted">Přihlášení kódem nebo účtem.</p>
+            <div class="auth-gate__tabs" role="tablist">
+                <button type="button" class="auth-gate__tab is-active" id="authTabCode" data-auth-tab="code">Kód</button>
+                <button type="button" class="auth-gate__tab" id="authTabUser" data-auth-tab="user">Účet</button>
+            </div>
+            <form id="authForm" class="auth-gate__form" data-auth-panel="code">
+                <label class="visually-hidden" for="accessCodeInput">Přístupový kód</label>
+                <input id="accessCodeInput" type="password" autocomplete="current-password"
+                    placeholder="Přístupový kód" />
+                <button type="submit" id="authEnterBtn" class="btn-primary">Vstoupit kódem</button>
+            </form>
+            <form id="authLoginForm" class="auth-gate__form" data-auth-panel="user" hidden>
+                <label class="visually-hidden" for="loginUsername">Uživatelské jméno</label>
+                <input id="loginUsername" type="text" autocomplete="username" placeholder="Jméno" />
+                <label class="visually-hidden" for="loginPassword">Heslo</label>
+                <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Heslo" />
+                <button type="submit" id="authLoginBtn" class="btn-primary">Přihlásit</button>
+            </form>
+            <p id="authGateError" class="auth-gate__error" hidden role="alert"></p>
+            <button type="button" id="authBrowseBtn" class="btn-ghost auth-gate__browse">
+                Prohlížet katalog bez kódu
+            </button>
+        </div>
+    </div>
+
+    <main>
+        <!-- Domů: katalog -->
+        <section id="viewHome" class="view view--home" data-view-panel="home" aria-label="Knihovny">
+            <div class="home-hero">
+                <div class="home-hero__copy">
+                    <h1 class="home-hero__title">Knihovny</h1>
+                    <p class="home-hero__lead muted">Evidence hodnocení open-source knihoven.</p>
+                    <p id="pilotStatusBanner" class="pilot-status muted small" hidden></p>
+                    <p id="authHint" class="muted small home-auth-hint" hidden>
+                        Prohlížíš dokončený katalog. Pro zápis se přihlas.
+                    </p>
+                </div>
+                <div class="home-hero__actions">
+                    <button type="button" id="newEvalBtn" class="btn-primary">Nové hodnocení</button>
+                    <button type="button" id="refreshHomeBtn" class="btn-ghost" title="Obnovit seznam">Obnovit</button>
+                </div>
+            </div>
+
+            <div class="catalog-toolbar" role="search">
+                <label class="visually-hidden" for="catalogSearch">Hledat knihovnu</label>
+                <input id="catalogSearch" type="search" placeholder="Hledat název nebo repo…" autocomplete="off" />
+                <label class="visually-hidden" for="catalogStatusFilter">Filtrovat stav</label>
+                <select id="catalogStatusFilter" aria-label="Filtrovat stav">
+                    <option value="all">Všechny stavy</option>
+                    <option value="in_progress">Rozpracováno</option>
+                    <option value="completed">Hotovo</option>
+                    <option value="not_recommended">Nedoporučeno</option>
+                    <option value="none">Bez hodnocení</option>
+                </select>
+            </div>
+
+            <div class="library-list-head" aria-hidden="true">
+                <span>Název</span>
+                <span>Verze</span>
+                <span>Stav</span>
+                <span>Aktualizace</span>
+                <span></span>
+            </div>
+
+            <div id="libraryDetail" class="library-detail" hidden>
+                <div class="library-detail__head">
+                    <button type="button" id="libraryDetailBack" class="btn-ghost">← Zpět na katalog</button>
+                    <h2 id="libraryDetailTitle" class="library-detail__title">Knihovna</h2>
+                    <p id="libraryDetailMeta" class="muted small"></p>
+                    <p id="libraryDetailBlurb" class="muted"></p>
+                    <div class="library-detail__actions">
+                        <button type="button" id="libraryDetailContinue" class="btn-primary" hidden>Pokračovat</button>
+                        <button type="button" id="libraryDetailNew" class="btn-secondary">Nové hodnocení</button>
+                        <button type="button" id="libraryDetailDelete" class="btn-ghost" hidden>Smazat knihovnu</button>
+                    </div>
+                </div>
+                <h3 class="library-detail__timeline-title">Časová osa hodnocení</h3>
+                <ol id="libraryDetailTimeline" class="library-timeline"></ol>
+            </div>
+
+            <div id="newEvalPanel" class="new-eval-panel" hidden>
+                <h2 class="new-eval-panel__title">Spustit nové hodnocení</h2>
+                <p class="muted small">Zadej GitHub <code>owner/repo</code> nebo URL. Po dokončení sběru se otevře pracovní plocha.</p>
+                <div class="new-eval-panel__row">
+                    <input id="repo" type="text"
+                        placeholder="např. openssl/openssl nebo https://github.com/openssl/openssl" />
+                    <button type="button" id="runBtn" class="btn-primary">Spustit sběr</button>
+                    <button type="button" id="cancelNewEvalBtn" class="btn-ghost">Zrušit</button>
+                </div>
+                <div class="row" id="tokenRow" hidden>
+                    <label class="muted" for="token">GitHub token</label>
+                    <input id="token" type="password" placeholder="ghp_xxx…" autocomplete="off" />
+                    <span class="muted small">Jen pro tento běh, neukládá se.</span>
+                    <div class="muted small" id="tokenHelp">
+                        <strong>Nemáš token?</strong>
+                        <ol>
+                            <li>Přihlas se na <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>.</li>
+                            <li>Otevři <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Settings →
+                                    Developer settings → Personal access tokens</a> a zvol <em>Generate new token
+                                    (classic)</em>.</li>
+                            <li>Zaškrtni <code>repo</code> (a případně <code>read:org</code>), zkopíruj token a vlož jej sem.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <div id="homeEmpty" class="home-empty" hidden>
+                <p>Zatím tu nic není. Spusť nové hodnocení.</p>
+            </div>
+
+            <div id="libraryList" class="library-list" aria-live="polite"></div>
+
+            <details class="home-advanced">
+                <summary>Další možnosti</summary>
+                <div class="home-advanced__body">
+                    <div class="row" id="uploadRow">
+                        <label class="muted" for="formFileInput">Nahrát vlastní JSON</label>
+                        <input id="formFileInput" type="file" accept=".json,application/json" />
+                        <button type="button" id="loadFileBtn">Načíst soubor</button>
+                        <span id="fileStatus" class="muted small file-status" aria-live="polite"></span>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Hidden select kept for compatibility with example loading by name -->
+            <select id="exampleSelect" hidden aria-hidden="true"></select>
+            <select id="draftSelect" hidden aria-hidden="true"></select>
+            <button type="button" id="loadExampleBtn" hidden aria-hidden="true"></button>
+            <button type="button" id="refreshDraftsBtn" hidden aria-hidden="true"></button>
+            <button type="button" id="loadDraftBtn" hidden aria-hidden="true"></button>
+        </section>
+
+        <section id="viewUsers" class="view view--users" data-view-panel="users" hidden aria-label="Uživatelé">
+            <div class="home-hero">
+                <div class="home-hero__copy">
+                    <h1 class="home-hero__title">Uživatelé</h1>
+                    <p class="home-hero__lead muted">Účty a role (jen admin).</p>
+                </div>
+            </div>
+            <form id="createUserForm" class="users-create">
+                <h2 class="users-create__title">Nový účet</h2>
+                <div class="users-create__row">
+                    <input id="newUserUsername" type="text" placeholder="jméno" required autocomplete="off" />
+                    <input id="newUserPassword" type="password" placeholder="heslo (min. 6)" required autocomplete="new-password" />
+                    <select id="newUserRole" aria-label="Role">
+                        <option value="reviewer">reviewer</option>
+                        <option value="viewer">viewer</option>
+                        <option value="admin">admin</option>
+                    </select>
+                    <button type="submit" class="btn-primary">Vytvořit</button>
+                </div>
+                <p id="usersFormError" class="complete-dialog__error" hidden></p>
+            </form>
+            <div id="usersList" class="users-list" aria-live="polite"></div>
+        </section>
+
+        <!-- Práce: hodnocení -->
+        <section id="viewWork" class="view view--work" data-view-panel="work" hidden aria-label="Hodnocení">
+            <div class="work-strip">
+                <div class="work-strip__identity">
+                    <div id="repoMeta" class="repo-meta" aria-live="polite">Hodnoceno: —</div>
+                    <div id="workStats" class="work-stats" aria-live="polite">
+                        <span id="workRemaining" class="work-stat">Zbývá: —</span>
+                        <button type="button" id="workMustOpen" class="work-stat work-stat--link" hidden>Povinné: —</button>
+                        <button type="button" id="workLowConf" class="work-stat work-stat--link" hidden>Nízká jistota: —</button>
+                        <span class="work-stat-sep" id="saveStatusSep" aria-hidden="true" hidden>·</span>
+                        <span id="saveStatus" class="save-status muted small" aria-live="polite"></span>
+                    </div>
+                </div>
+                <div class="work-strip__actions">
+                    <div class="more-menu" id="moreMenu">
+                        <button type="button" id="moreMenuBtn" class="btn-ghost" aria-haspopup="true"
+                            aria-expanded="false" aria-controls="moreMenuPanel">⋯</button>
+                        <div id="moreMenuPanel" class="more-menu__panel" hidden role="menu">
+                            <button type="button" role="menuitem" id="downloadPdfDraftBtn"
+                                title="Koncept PDF i s nehodnocenými otázkami">PDF koncept</button>
+                            <button type="button" role="menuitem" id="recalcBtn">Přepočítat interní skóre</button>
+                            <button type="button" role="menuitem" id="saveDraftBtn">Uložit teď</button>
+                            <button type="button" role="menuitem" id="restoreDraftBtn">Obnovit zálohu prohlížeče</button>
+                            <button type="button" role="menuitem" id="downloadBtn">Stáhnout JSON</button>
+                            <button type="button" role="menuitem" id="downloadSignedBtn">Stáhnout podepsaný export</button>
+                            <button type="button" role="menuitem" id="expandAllBtn">Rozbalit vše</button>
+                            <button type="button" role="menuitem" id="collapseAllBtn">Sbalit vše</button>
+                            <button type="button" role="menuitem" id="toggleTechBtn">Interní pomůcka</button>
+                            <button type="button" role="menuitem" id="toggleTechDetailsBtn">Technické údaje</button>
+                            <button type="button" role="menuitem" id="backHomeBtn">Zpět na knihovny</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="collectionBanner" class="collection-banner" hidden role="status" aria-live="polite">
+                <div class="collection-banner__main">
+                    <strong id="collectionBannerTitle">Sbírám podklady…</strong>
+                    <span id="collectionBannerProgress" class="collection-banner__progress muted">0/5</span>
+                </div>
+                <p id="collectionBannerDetail" class="collection-banner__detail muted small"></p>
+                <div class="collection-banner__actions">
+                    <button type="button" id="collectionLogBtn" class="btn-ghost">Zobrazit log</button>
+                    <button type="button" id="collectionRetryBtn" class="btn-secondary" hidden>Zopakovat sběr</button>
+                </div>
+            </div>
+
+            <div id="evidencePack" class="evidence-pack" hidden aria-label="Kanonické podklady">
+                <span class="evidence-pack__label muted small">Podklady</span>
+                <div id="evidencePackLinks" class="evidence-pack__links"></div>
+            </div>
+
+            <div id="metaIdentity" class="meta-identity" hidden>
+                <label class="meta-identity__field">
+                    <span class="muted small">Typ knihovny</span>
+                    <input type="text" id="metaLibraryType" class="meta-identity__input" placeholder="např. kryptografická knihovna" autocomplete="off" />
+                </label>
+                <label class="meta-identity__field">
+                    <span class="muted small">Datum hodnocení</span>
+                    <input type="date" id="metaAssessmentDate" class="meta-identity__input" />
+                </label>
+            </div>
+
+            <div id="ratingDiffBanner" class="rating-diff" hidden role="status">
+                <strong class="rating-diff__title">Změny proti předchozímu hodnocení</strong>
+                <p id="ratingDiffDetail" class="rating-diff__detail muted small"></p>
+                <ul id="ratingDiffList" class="rating-diff__list"></ul>
+            </div>
+
+            <div id="pdfReadiness" class="pdf-readiness" aria-live="polite" hidden>
+                <div class="pdf-readiness__head">
+                    <strong id="pdfReadinessTitle">Oficiální PDF ještě nejde stáhnout</strong>
+                    <span id="pdfReadinessStatus" class="pdf-readiness__status muted">—</span>
+                </div>
+                <div id="pdfMissingList" class="pdf-missing-list" hidden role="list"></div>
+            </div>
+
+            <section id="detailsSection" class="work-details">
+                <h2 class="visually-hidden">Formulář hodnocení</h2>
+                <div id="details" class="panel" aria-live="polite"></div>
+            </section>
+
+            <div id="workFooter" class="work-footer" hidden>
+                <div class="work-footer__copy">
+                    <strong class="work-footer__title">Fronta je hotová</strong>
+                    <span class="muted small">Uzavři hodnocení do katalogu, nebo stáhni oficiální PDF.</span>
+                </div>
+                <div class="work-footer__actions">
+                    <button type="button" id="completeEvalBtn" class="btn-primary"
+                        title="Označit hodnocení jako hotové nebo nedoporučené">Dokončit hodnocení</button>
+                    <button type="button" id="downloadPdfBtn" class="btn-secondary"
+                        title="Oficiální PDF formuláře v1.0" disabled>Stáhnout oficiální PDF</button>
+                </div>
+            </div>
+
+            <details id="techPanel" class="tech-panel">
+                <summary>Interní pomůcka (skóre — není oficiální verdikt)</summary>
+                <div class="tech-panel__body">
+                    <p class="muted small" id="summaryHint">
+                        Bodové skóre a známka jsou jen pracovní pomůcka. Oficiální výstup je Formulář v1.0.
+                    </p>
+                    <div id="summary"></div>
+                    <div class="result-json">
+                        <div class="result-json__header">
+                            <strong>Pracovní JSON</strong>
+                            <span class="muted small">Stáhneš přes menu ⋯ → Stáhnout JSON.</span>
+                        </div>
+                        <pre id="json" aria-label="Pracovní JSON"></pre>
+                    </div>
+                </div>
+            </details>
+
+            <details id="techDetailsPanel" class="tech-panel tech-panel--details">
+                <summary>Technické údaje</summary>
+                <div class="tech-panel__body">
+                    <p class="muted small">Identifikátory pro reprodukci běhu. V běžné práci je nepotřebuješ.</p>
+                    <dl id="techDetails" class="tech-details"></dl>
+                </div>
+            </details>
+        </section>
+    </main>
+
+    <div id="appToast" class="app-toast" hidden role="status" aria-live="polite"></div>
+
+    <div id="completeDialog" class="complete-dialog" hidden role="dialog" aria-modal="true"
+        aria-labelledby="completeDialogTitle">
+        <div class="complete-dialog__backdrop" id="completeDialogBackdrop"></div>
+        <div class="complete-dialog__panel">
+            <h2 id="completeDialogTitle" class="complete-dialog__title">Dokončit hodnocení</h2>
+            <p class="muted small">Označ výsledek pro katalog. Poznámka je povinná — uvidí ji i další hodnotitelé.</p>
+            <fieldset class="complete-dialog__outcomes">
+                <legend class="visually-hidden">Výsledek</legend>
+                <label class="complete-dialog__choice">
+                    <input type="radio" name="completeOutcome" value="completed" checked />
+                    <span>Označit jako hotové</span>
+                </label>
+                <label class="complete-dialog__choice">
+                    <input type="radio" name="completeOutcome" value="not_recommended" />
+                    <span>Nedoporučit k použití</span>
+                </label>
+            </fieldset>
+            <label class="complete-dialog__note-label" for="completeNote">Krátká poznámka</label>
+            <textarea id="completeNote" rows="3" placeholder="Proč hotovo / proč nedoporučit…"></textarea>
+            <p id="completeDialogError" class="complete-dialog__error" hidden></p>
+            <div class="complete-dialog__actions">
+                <button type="button" id="completeDialogCancel" class="btn-ghost">Zrušit</button>
+                <button type="button" id="completeDialogConfirm" class="btn-primary">Uložit výsledek</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="signDialog" class="complete-dialog" hidden role="dialog" aria-modal="true"
+        aria-labelledby="signDialogTitle">
+        <div class="complete-dialog__backdrop" id="signDialogBackdrop"></div>
+        <div class="complete-dialog__panel">
+            <h2 id="signDialogTitle" class="complete-dialog__title">Podepsat export?</h2>
+            <p class="muted small">
+                Volitelný Ed25519 podpis completed hodnocení. Ověří, že export nebyl potichu změněn.
+                Text „Schválil:“ z poznámky zůstává; neúspěch podpisu hodnocení nesmaže.
+            </p>
+            <p id="signDialogError" class="complete-dialog__error" hidden></p>
+            <div class="complete-dialog__actions">
+                <button type="button" id="signDialogSkip" class="btn-ghost">Teď ne</button>
+                <button type="button" id="signDialogConfirm" class="btn-primary">Podepsat export</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pipeline drawer: not on Domů by default -->
+    <aside id="pipelineDrawer" class="pipeline-drawer" data-open="false" aria-hidden="true">
+        <div class="pipeline-drawer__backdrop" id="pipelineBackdrop"></div>
+        <div class="pipeline-drawer__panel" role="dialog" aria-labelledby="pipelineTitle">
+            <div class="pipeline-drawer__head">
+                <strong>Průběh sběru</strong>
+                <button type="button" id="pipelineCloseBtn" class="btn-ghost" title="Sbalit">Sbalit</button>
+            </div>
+            <div id="pipelineCard" class="pipeline-card" data-status="idle" aria-live="polite">
+                <div class="pipeline-card__head">
+                    <span class="pipeline-indicator" aria-hidden="true"></span>
+                    <div class="pipeline-card__titles">
+                        <strong id="pipelineTitle">Sběr připraven</strong>
+                        <span id="pipelinePhase" class="muted small">Čeká na spuštění.</span>
+                    </div>
+                </div>
+                <div class="pipeline-progress" aria-hidden="true">
+                    <span id="pipelineProgressFill" class="pipeline-progress__fill"></span>
+                </div>
+                <div class="pipeline-steps" aria-label="Fáze sběru">
+                    <span class="pipeline-step" data-pipeline-step="1" data-status="pending">1</span>
+                    <span class="pipeline-step" data-pipeline-step="2" data-status="pending">2</span>
+                    <span class="pipeline-step" data-pipeline-step="3" data-status="pending">3</span>
+                    <span class="pipeline-step" data-pipeline-step="4" data-status="pending">4</span>
+                    <span class="pipeline-step" data-pipeline-step="5" data-status="pending">5</span>
+                    <span class="pipeline-step" data-pipeline-step="finalize" data-status="pending">F</span>
+                </div>
+                <div id="pipelineAlive" class="pipeline-alive muted small">Čeká na spuštění.</div>
+            </div>
+            <pre id="log" class="pipeline-drawer__log" aria-live="polite"></pre>
+        </div>
+    </aside>
+
+    <button type="button" id="pipelineFab" class="pipeline-fab" hidden title="Zobrazit průběh sběru">Sběr</button>
+
+    <script type="module" src="/app.js"></script>
+</body>
+
+</html>

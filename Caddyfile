@@ -1,0 +1,21 @@
+# Reverse proxy for HTTPS in front of the review app (krok 10).
+# Replace demo.example.org with your PUBLIC_BASE_URL host.
+#
+# Run (example):
+#   docker run --rm -d --name caddy \
+#     -p 80:80 -p 443:443 \
+#     -v $PWD/Caddyfile:/etc/caddy/Caddyfile \
+#     -v caddy_data:/data \
+#     caddy:2
+#
+# App must listen on host network or a docker network reachable as "app:8000".
+
+{$PUBLIC_HOST:demo.example.org} {
+	encode gzip
+	reverse_proxy app:8000
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}

@@ -1,0 +1,750 @@
+{
+    "title": "Formulář v1.0: Hodnocení open-source knihovny (dle metodiky)",
+    "version": "2.0",
+    "language": "cs",
+    "note": "Oficiální formulář odpovídá Podklady pro projekt/formular.txt a metodice kap. 6.1–6.5. Bodové skóre/grade je interní pomůcka (D4). Stav nehodnoceno je jen pracovní (D5).",
+    "rating_options": [
+        "nehodnoceno",
+        "splňuje",
+        "částečně splňuje",
+        "nesplňuje"
+    ],
+    "schema_requirements": {
+        "question_required_fields": [
+            "id",
+            "text",
+            "rating",
+            "note",
+            "category",
+            "description",
+            "evidence",
+            "heuristic"
+        ],
+        "evidence_description": "URL nebo textový odkaz na důkaz (release/tag/podpis, provenance/attestation, SBOM, CI běh, policy, advisory). Pokud důkaz není veřejný, uveď interní odkaz/artefakt. Bez 'evidence' je odpověď neauditovatelná."
+    },
+    "meta": {
+        "repo": "",
+        "requested_ref": "",
+        "effective_ref": "",
+        "evaluated_repo_version": ""
+    },
+    "scoring": {
+        "section_weights_percent": {
+            "1": 25,
+            "2": 25,
+            "3": 20,
+            "4": 15,
+            "5-sec:api": 15
+        },
+        "benchmark_profile": "mature-oss-v1",
+        "rating_points": {
+            "splňuje": 1.0,
+            "částečně splňuje": 0.75,
+            "nesplňuje": 0.0,
+            "nehodnoceno": 0.25
+        },
+        "category_weights": {
+            "must have": 1.0,
+            "good to have": 0.95,
+            "nice to have": 0.85
+        },
+        "benchmark_reference_band": {
+            "reference_min": 70,
+            "reference_good": 82,
+            "reference_excellent": 90
+        },
+        "cutoffs": {
+            "must_have": {
+                "rule": "V KAŽDÉ sekci (1,2,3,4,5-sec:api) musí být 100 % položek 'must have' ve stavu 'splňuje'. Pokud se kritérium knihovny netýká, ponech 'nehodnoceno' a vysvětli v poznámce (nebo zvol jiné relevantní hodnocení).",
+                "tolerance": "V jedné libovolné sekci lze mít nejvýše 1 položku 'must have' jako 'částečně splňuje' s jasným plánem nápravy ≤ 30 dní."
+            },
+            "scoring_grades": {
+                "pass_min": 75,
+                "good": 85,
+                "excellent": 92
+            },
+            "scoring_rules": "Kalibrované skóre: 'splňuje' = 100 %, 'částečně splňuje' = 75 %, 'nesplňuje' = 0 %, 'nehodnoceno' = 25 % (zahrnuje i případy, kdy se kritérium netýká). Sekční průměr používá váhy kategorií (must have 1.0, good to have 0.95, nice to have 0.85)."
+        }
+    },
+    "sections": [
+        {
+            "id": 1,
+            "title": "Předpoklady",
+            "questions": [
+                {
+                    "id": "1-1",
+                    "text": "Hodnocená knihovna je opravdu ta, za kterou se vydává (tj. nejedná se například o osobní „fork“ nebo podvodnou kopii). Distribuce softwaru musí používat mechanismus odolný proti narušení autenticity a integrity, např. útokům typu man-in-the-middle (např. TLS nebo SSH).",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Ověř, že identita projektu i artefaktů je prokazatelná: oficiální repozitář/organizace, doména projektu, shoda názvu balíčku v ekosystému (PyPI/NPM/Crates/Maven), podepsané tagy/release (GPG/Sigstore), hash/provenance k distribuci, release kanály bez typosquattingu. Stáhni přes TLS z oficiálních zdrojů; nedůvěryhodné mirrory nebo osobní forky jsou nepřípustné.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Sekce 1 vyhodnocuje metadata repozitáře, ověřenost organizace, poslední release či tag a GitHub verifikaci podpisů; všechny zdroje zapisuje jako důkazy a pokud je vlastník ověřený nebo existuje podepsaný release, nastaví hodnocení splňuje."
+                },
+                {
+                    "id": "1-2",
+                    "text": "Knihovna nabízí funkcionalitu, která je pro cílový projekt potřebná, a zároveň cílový projekt nemá k dispozici jednodušší nebo důvěryhodnější způsob, jak této funkcionality dosáhnout.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Posuď nutnost závislosti: scope, velikost, transitive deps, alternativy v jazyce/standardní knihovně, cena vs. přínos, dlouhodobá údržba. Knihovna se přidává pouze, pokud je nejjednodušší bezpečnou cestou k požadované funkci a neexistuje menší či spolehlivější náhrada.",
+                    "heuristic_rating": false,
+                    "evidence": "",
+                    "heuristic": "Heuristika bere z GitHub API popis, jazyky, statistiky hvězd a forků i URL README; když existuje README a zároveň jazyková nebo popularitní data, považuje otázku za splněnou, jinak vrací pouze částečně splňuje."
+                },
+                {
+                    "id": "1-3",
+                    "text": "Knihovna nevykazuje obecné známky škodlivosti, tj. kód, testy nebo instalační skripty neobsahují obfuskace, kód, který by se snažil exfiltrovat citlivá data, např. SSH klíče, apod.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Zkontroluj zdrojové kódy a build/instalační skripty (setup, postinstall hooks, Makefile, CI skripty) na indikátory malwaru: obfuskace/minifikace bez zdrojů, síťová komunikace mimo dokumentované end-pointy, telemetrie bez opt-in, přístup k citlivým souborům, spouštění shellu, stažení binárních blobů. Vyluč balíčky s „typosquat“ vzorci.",
+                    "heuristic_rating": false,
+                    "evidence": "",
+                    "heuristic": "Skript spouští předdefinované GitHub code-search dotazy na podezřelé vzory (například curl | sh, base64 | sh nebo ~/.ssh), vyhodnocuje počet zásahů a ukládá ukázky; absence nálezů znamená splňuje, masivní nebo rizikové výsledky snižují hodnocení."
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Open-source vývoj",
+            "questions": [
+                {
+                    "id": "2-1",
+                    "text": "Knihovna je stabilní a aktivně vyvíjená.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Posuď trend commitů, releasů a odpovědí správců; stabilita znamená předvídatelné verze, semver, bez častých breaking changes bez migrace. Aktivní projekt má aktuální závislosti, CI běží a PR/issue tok je živý.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Z posledních dvanácti měsíců spočítá počet commitů i releasů; pokud projekt splňuje práh alespoň 12 commitů nebo dvě releasy, vrací splňuje, v opačném případě pouze částečně splňuje."
+                },
+                {
+                    "id": "2-1a",
+                    "text": "Poslední veřejná verze knihovny není starší než 1 rok.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Kontroluj datum posledního releasu nebo tagu. Starší než 12 měsíců je varovný signál, pokud nejde o záměrně zamrzlou stabilní knihovnu s backporty bezpečnostních oprav.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Porovnává datum posledního releasu s hranicí dvanácti měsíců a zároveň kontroluje, zda release není označen jako pre-release; podle výsledku vrací splňuje, případně jen částečně nebo nesplňuje a přidává odkaz na releasy."
+                },
+                {
+                    "id": "2-1b",
+                    "text": "Projekt za poslední rok vykazuje známky aktivity (příspěvky kódu, aktivita mailing listů, apod.).",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Hledej commity, releasy, uzavřená/komentovaná issues, PR, diskuse na fóru. Aktivita nemusí být vysoká, ale musí dokazovat údržbu a reakci na bezpečnostní témata.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Z GitHub API zjišťuje, zda v posledním roce proběhl alespoň jeden commit, issue nebo release; jakákoli aktivita stačí na hodnocení splňuje, úplná nečinnost znamená nesplňuje."
+                },
+                {
+                    "id": "2-1c",
+                    "text": "Správci projektu se vyjádřili alespoň k 50 % chyb nebo návrhů ke zlepšení (issues) nahlášených v posledních 2–12 měsících.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Měř reakční schopnost: podíl uzavřených/okomentovaných issues, median doby do první reakce, SLA u bezpečnostních hlášení. Nízká odezva = riziko neopravených CVE.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Na vzorku issues z posledních dvanácti měsíců sleduje, zda odpověděl někdo s rolí MEMBER, OWNER nebo COLLABORATOR, a spočítá procento reakcí; pokud je reakční míra alespoň 50 %, vrací splňuje, jinak podle dostupnosti dat pouze částečně nebo nesplňuje."
+                },
+                {
+                    "id": "2-1d",
+                    "text": "Identifikátor verze knihovny nenaznačuje nestabilní verzi (např. „alpha“ nebo „beta“).",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Semver pre-release tagy a označení jako alpha/beta/rc jsou vhodné jen pokud akceptuješ nižší stabilitu; do produkce preferuj stabilní releasy.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Kontroluje, jestli poslední release není označen jako pre-release; pokud není, otázku hodnotí splňuje, jinak jen částečně splňuje s odkazem na releasy."
+                },
+                {
+                    "id": "2-2",
+                    "text": "Dokumentace nebo „README“ knihovny jasně a srozumitelně (tj. bez rozsáhlého použití žargonu) vymezuje její funkcionalitu a zamýšlené použití.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Hledej jasné sekce: účel, podporované platformy/jazyky, limity, anti-patterns. Popisy musí být praktické a testovatelné, ne marketingové slogany.",
+                    "heuristic_rating": false,
+                    "evidence": "",
+                    "heuristic": "Ověřuje přítomnost README (README.md nebo README.rst) a nalezený soubor považuje za důkaz jasného vymezení funkcionality; chybějící README vede k hodnocení nesplňuje."
+                },
+                {
+                    "id": "2-3",
+                    "text": "Dokumentace nebo „README“ knihovny jasně vymezuje způsoby, kterými lze nahlašovat chyby, diskutovat nad změnami a přispívat do projektu.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Ověř existenci CONTRIBUTING.md, CODE_OF_CONDUCT.md, ISSUE/SECURITY templates, komunikačních kanálů (discussions, mailing list, chat).",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Hledá soubory CONTRIBUTING.md a SECURITY.md v kořeni i ve složce .github, jejich URL ukládá do evidence a podle nalezených kombinací posuzuje, zda je popsaný proces hlášení chyb a přispívání."
+                },
+                {
+                    "id": "2-4",
+                    "text": "Dokumentace nebo „README“ knihovny jasně popisuje postup, kterým projekt reaguje na nahlášené zranitelnosti, včetně informací o tom, jestli jsou opravy aplikovány zpětně i na starší verze knihovny.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Kontroluj SECURITY.md: privátní/soukromý kanál pro report, SLA, podporované větve, zásady zveřejnění, proces CVE (CNA/partner), koordinace s ekosystémovým registrem.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Zjišťuje, zda repozitář obsahuje SECURITY.md nebo relevantní informace v release notes, které popisují reakci na zranitelnosti; plné splnění dává pouze při nalezeném SECURITY.md."
+                },
+                {
+                    "id": "2-5",
+                    "text": "Projekt používá verzovací systém (např. git), který zaznamenává všechny informace o tom, který uživatel provedl jaké změny v kódu a kdo změny potvrdil.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Repo má auditovatelné dějiny: podepsané commity/tagy, chráněné větve, požadavky na review, squash/merge pravidla, zákaz force-push na main.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Automat nedokáže bez manuální kontroly ověřit auditovatelnost historie, proto konzervativně vrací částečně splňuje a přikládá odkazy na repo a releasy jako podklad k ručnímu posouzení."
+                },
+                {
+                    "id": "2-6",
+                    "text": "Projekt nemá žádné neopravené zranitelnosti závažnosti alespoň „medium“, které byly zveřejněny před více než 60 dny.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Ověř pomocí advisories (GitHub/NVD/OSV) a release notes, zda jsou známé CVE opraveny v podporovaných větvích do 60 dní, nebo je uveden mitigující workaround.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Dotazuje OSV.dev na zranitelnosti projektu, filtruje závažnosti alespoň medium a podle nálezů rozhoduje; bez kritických zranitelností vrací pouze částečně splňuje, při otevřených nálezech hodnotí nesplňuje."
+                },
+                {
+                    "id": "2-7",
+                    "text": "Knihovna obsahuje sadu testů a dává k dispozici návod, jak tyto testy spustit. Dále knihovna od příspěvků, které přidávají nový kód, vyžaduje přítomnost testů.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Existence unit/integration testů, instrukce v README/CONTRIBUTING, CI enforcement (testy povinné před merge), minimální pokrytí nebo alespoň kritické cesty pokryty.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Vyhledává testovací adresáře a workflow signály, že se testy opravdu spouštějí (například přítomnost složky tests nebo workflow s test cílem); nalezené signály vedou ke splňuje, jinak k částečně splňuje."
+                },
+                {
+                    "id": "2-8",
+                    "text": "Každou vydanou verzi doprovází dokument (release notes), ve kterém je popsáno, k jakým změnám v nové verzi došlo a co to pro uživatele znamená. Zároveň jsou v něm popsány všechny zranitelnosti, které aktualizace případně opravuje, včetně jejich dostupných identifikátorů (např. CVE).",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Release notes musí být úplné: změny, migrační kroky, bezpečnostní opravy s odkazy na CVE/OSV, známé problémy. Ideálně generované z changelogu s semver.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Analyzuje tělo posledního releasu, zda obsahuje release notes a případné zmínky o CVE, a podle výsledku rozhoduje mezi splňuje a částečně splňuje; do evidence ukládá odkaz na releasy."
+                },
+                {
+                    "id": "2-9",
+                    "text": "Schválení nového kódu před přidáním do repozitáře provádí povinně někdo jiný než jeho autor.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Požaduj povinné code-review (min. 1–2 reviewerů) a branch protection; žádné self-merge na privilegovaných větvích.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Kvůli omezeným veřejným údajům o povinném code-review skript pouze kontroluje existenci CI/workflows a vrací konzervativně částečně splňuje."
+                },
+                {
+                    "id": "2-10",
+                    "text": "Kód, který je do knihovny přijímán, je důkladně revidován členy úzkého týmu (řádově jednotek) správců, kteří jsou s projektem detailně seznámeni a rozumí jeho struktuře.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Review provádějí core maintainers se znalostí architektury; používej CODEOWNERS/maintainers file a schvalovací práva definovaná na kritické části kódu.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Bez přístupu k detailní politice CODEOWNERS heuristika jen odkáže na dostupný soubor a ponechá výsledek částečně splňuje."
+                },
+                {
+                    "id": "2-11",
+                    "text": "Projekt má dedikovaného člověka, který se specializuje na bezpečnost kódu, a tento člověk se aktivně podílí na revizi příspěvků do kódu.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Hledej role Security WG/maintainer, pravidelné bezpečnostní triage, zapojení do security review a release procesu.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Sleduje, zda SECURITY.md obsahuje zmínku o bezpečnostním kontaktu či týmu; nález znamená částečně splňuje, úplná absence vede k nesplňuje."
+                },
+                {
+                    "id": "2-12",
+                    "text": "Knihovna má alespoň 2 správce.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Distribuce znalostí a klíčů: více vlastníků/maintainerů s aktivitou snižuje single point of failure a riziko opuštění projektu.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Z API contributorů odhaduje počet core maintainerů a pokud najde alespoň dva aktivní účty, hodnotí otázku jako splňuje, jinak nesplňuje."
+                },
+                {
+                    "id": "2-13",
+                    "text": "Schválení nového kódu před přidáním do repozitáře mají na starost v každém jednotlivém případě nejvýše 2 členové týmu.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Vyvážení bezpečnosti a propustnosti: jasná odpovědnost; vyžaduj ale možnost eskalace na širší tým u rizikových změn.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Automat nedokáže ověřit, kolik lidí schvaluje změny v každém PR, proto pouze přikládá odkaz na repo a ponechá hodnocení částečně splňuje."
+                },
+                {
+                    "id": "2-14",
+                    "text": "Projekt zaměstnává alespoň jednoho vývojáře (nebo mu jiným způsobem umožňuje na projektu pracovat) na plný úvazek.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Sponzoring/financování (nadace, granty, firmy) zvyšuje udržitelnost; hledej explicitní funding info (OpenCollective, GitHub Sponsors).",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Hledá soubor FUNDING.yml v kořeni nebo .github, který naznačuje financování či sponzoring; nalezený soubor vede k částečně splňuje, jeho absence k nesplňuje."
+                },
+                {
+                    "id": "2-15",
+                    "text": "Knihovna je široce používaná.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Proxy pro důvěryhodnost: počet stažení, závislých projektů, citace. Pozor na popularitu bez bezpečnostních praktik – hodnotíš vždy i procesy.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Vyhodnocuje popularitu z počtu hvězd, forků a watcherů; pokud repo překročí prah 1000 hvězd nebo 200 forků, vrací splňuje, jinak částečně splňuje."
+                },
+                {
+                    "id": "2-16",
+                    "text": "Knihovna sadu automatických testů spouští v rámci průběžné integrace (CI) a měří pokrytí kódu.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Kontroluj stav CI, odkaz na badge/artefakty, report pokrytí (coverage), blokování merge při selhání testů.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Kontroluje, zda repo používá GitHub Actions nebo jiné workflows; detekovaná CI vede k hodnocení splňuje, absence pouze k částečně splňuje."
+                },
+                {
+                    "id": "2-17",
+                    "text": "Závislosti, které knihovna používá, jsou převážně aktuální.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Sleduj zastaralé knihovny, security advisories, dependabot/renovate; pravidelná aktualizace minor/patch verzí je znakem zdraví.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Automat nemá spolehlivý způsob jak posoudit aktualitu závislostí, proto vrací konzervativně částečně splňuje a odkazuje na releasy pro ruční kontrolu."
+                },
+                {
+                    "id": "2-18",
+                    "text": "Dokumentace knihovny vysvětluje, jakými mechanismy je zaručena bezpečnost knihovny (tzv. „assurance case“).",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Vyžaduj stručný assurance case: jaké hrozby řeší, jakými návrhovými principy (fail-safe, side-channel mitigace), jaké testy/audity to potvrzují.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Assurance case neumí skript automaticky potvrdit, takže ponechává částečně splňuje s odkazem na repo a dokumentaci."
+                },
+                {
+                    "id": "2-19",
+                    "text": "Knihovna má standardním způsobem deklarovanou FLOSS licenci.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Licence musí být jasná (SPDX identifier), soubory LICENSE/COPYING přítomny; u kryptografie ověř legální omezení exportu, pokud relevantní.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Z GitHub API načte deklarovanou licenci (SPDX ID) a její URL; při nalezení licence hodnotí splňuje, jinak pouze částečně splňuje."
+                },
+                {
+                    "id": "2-20",
+                    "text": "Knihovna byla v nedávné době auditována důvěryhodnou a nezávislou třetí stranou a případné nálezy auditu byly do knihovny následně zapracovány.",
+                    "rating": null,
+                    "note": "",
+                    "category": "nice to have",
+                    "description": "Ověř existenci veřejné zprávy nebo alespoň shrnutí nálezů, scope auditu, datum a stav nápravných opatření; není náhradou za interní due diligence.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Informaci o nedávném nezávislém auditu nelze z veřejných dat bezpečně zjistit, proto automat vrací částečně splňuje a nechává prostor pro manuální ověření."
+                },
+                {
+                    "id": "2-21",
+                    "text": "Vývojáři/správci knihovny jsou ochotní konzultovat s jejími uživateli způsob použití.",
+                    "rating": null,
+                    "note": "",
+                    "category": "nice to have",
+                    "description": "Dostupné komunikační kanály, odkazy na podporu/konzultace; rychlost a kvalita odpovědí na technické dotazy.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Ochotu konzultovat heuristika odvozuje jen z aktivity v issues, což je slabý signál, a proto vrací konzervativně částečně splňuje."
+                },
+                {
+                    "id": "2-22",
+                    "text": "Kryptografická implementace má některou uznávanou certifikaci, např. FIPS 140-2 nebo FIPS 140-3.",
+                    "rating": null,
+                    "note": "",
+                    "category": "nice to have",
+                    "description": "Ověř oficiální status (NIST CMVP) pro dané verze/platformy; certifikace bývá drahá a nemusí pokrývat všechny funkce, proto ji ber jako silné plus.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "FIPS certifikaci je nutné ověřit v externí databázi NIST CMVP; skript proto automaticky vrací částečně splňuje a přidává odkaz na oficiální vyhledávání."
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Kvalita kódu",
+            "questions": [
+                {
+                    "id": "3-1",
+                    "text": "Pokyny pro přispívání popisují styl kódu, který má být v knihovně používán.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Existuje udržovaný style guide a nástroj k jeho vynucení (linter/formatter) integrovaný v CI; přispěvatelé mají jasné požadavky na kvalitu příspěvků.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Sekce 3 sleduje přítomnost style guide souborů (.clang-format, .clang-tidy, .editorconfig, CONTRIBUTING) a signály lintu v GitHub Actions; kombinace stylu i CI vede ke splňuje, slabší nálezy k částečně nebo nesplňuje."
+                },
+                {
+                    "id": "3-2",
+                    "text": "Knihovna používá nástroje na statickou a dynamickou analýzu kódu, obsahuje unit testy jednotlivých funkcí a tyto nástroje se spouštějí na každou novou změnu v kódu.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Ověř SAST/linters/typové kontroly, DAST/IAST (je-li smysluplné), unit/integration testy a jejich automatické spouštění v CI na PR.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Prochází workflows a badge signály, zda CI spouští testy, SAST nebo coverage; podle kombinace nalezených signálů nastaví výsledné hodnocení a do evidence přidá odkazy na workflow."
+                },
+                {
+                    "id": "3-3",
+                    "text": "Statická analýza kódu (pokud je možné použít dostupný nástroj pro daný jazyk) neprodukuje žádná závažná varování.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "CI by neměla povolit merge se závažnými nálezy; menší varování musí být triážována s odůvodněním (false positive, wontfix s mitigací).",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Dotazuje GitHub Code Scanning API, zjišťuje stav i počet alertů a podle výsledku rozhoduje mezi splňuje (0 alertů), částečně splňuje (omezený přístup nebo několik nálezů) a přidává odkazy na Code Scanning UI."
+                },
+                {
+                    "id": "3-4",
+                    "text": "Knihovna je napsaná v jazyce zaručujícím paměťovou bezpečnost (např. Java, C#, Rust, Python, JavaScript, …).",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Preferuj paměťově bezpečné jazyky; pokud obsahuje C/C++ části, požaduj mitigace (ASLR, stack canaries, UBSan/ASan, safe APIs) a code review zaměřené na memory safety.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Analýzou seznamu jazyků z GitHub API heuristicky posuzuje, zda projekt používá paměťově bezpečné jazyky nebo mix s C a C++; podle toho vrací splňuje, částečně splňuje nebo nesplňuje."
+                },
+                {
+                    "id": "3-5",
+                    "text": "Pokud jazyk implementace podporuje „bezpečný“ nebo „přísný“ mód kompilace, knihovna jej využívá. Alternativou pro přísný mód může být použití tzv. linteru. Varování produkovaná při kompilaci jsou adresována.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Zapnuté přísné flagy (např. -Werror, clippy/pylint rules), zákaz nevyužitých proměnných, nepokrytých výjimek; varování jsou řešena, neignorována.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Skript skenuje workflows a build skripty na striktní flagy a lint/test signály, aby zjistil, zda je zapnutý režim warnings-as-errors; silné důkazy vedou ke splnění, slabší k částečnému hodnocení."
+                },
+                {
+                    "id": "3-6",
+                    "text": "Knihovna používá fuzz testy.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Hledej integraci s OSS-Fuzz/AFL/libFuzzer/Honggfuzz nebo vlastní fuzzing na kritické parsovací/šifrovací cesty; pravidelné běhy a triage nálezů.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Kombinuje data z OSS-Fuzz Introspectoru, přítomnost fuzz adresářů v repozitáři a CI signály fuzz/sanitizers; pokud najde reálné fuzz testy, hodnotí splňuje, jinak podle náznaků pouze částečně nebo nesplňuje."
+                },
+                {
+                    "id": "3-7",
+                    "text": "Kód je rozdělen do souborů po logických funkčních celcích rozumně malého počtu řádků kódu. Kód je čitelný, jeho cyklomatická složitost je nízká a nevykazuje známky přílišného zanořování syntaktických konstrukcí.",
+                    "rating": null,
+                    "note": "",
+                    "category": "nice to have",
+                    "description": "Posuď modularitu, cyklomatickou složitost (např. metriky v CI), dodržení SRP a absence ‚god objects‘; náročná místa mají komentovaný záměr a invariants.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Kontroluje, zda má projekt style soubory a modulární strukturu (například adresáře cmake, library, include); více signálů vede ke splňuje, jednotlivé k částečně, absence k nesplňuje."
+                }
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Dokumentace a zdroje informací",
+            "questions": [
+                {
+                    "id": "4-1",
+                    "text": "Knihovna má oficiální dokumentaci vysvětlující její instalaci a použití. Dokumentace jejího programátorského rozhraní pokrývá všechny veřejné moduly knihovny.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Ověř úplnost: instalace, minimální podporované verze, API reference pro veřejné moduly, příklady a známé limity; verze dokumentace odpovídá poslednímu release.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Analyzuje README, instalační soubory a detekované dokumentační systémy (Sphinx, MkDocs, Doxygen), aby ověřil přítomnost instalačních instrukcí i API reference; obě podmínky musí být splněny pro plné hodnocení."
+                },
+                {
+                    "id": "4-2",
+                    "text": "Dokumentace obsahuje ukázky kódu alespoň pro nejčastější způsoby použití. Ukázky kódu používají bezpečné praktiky, například nezjednodušují nebo nevynechávají generování klíčů.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Příklady jsou spustitelné/testované (doctest/snippets v CI), používají bezpečné výchozí hodnoty a varují před zkratkami (např. pevné IV, slabé RNG).",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Hledá ukázky kódu v README (code bloky s example) a složky examples nebo demo; nalezené příklady vedou ke splňuje, jinak otázku hodnotí pouze částečně."
+                },
+                {
+                    "id": "4-3",
+                    "text": "U nebezpečných algoritmů, konfigurací, případně parametrů funkcí, jejichž význam není pro ne-experty samozřejmý, je zřetelně uvedeno varování a vysvětleno, co je potřeba zvážit před jejich použitím.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Dokumentace označuje deprecated/nejistá schémata, nebezpečné parametry (např. ECB, SHA-1, nízké iterace KDF), popisuje předpoklady a bezpečné alternativy.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Prohledává README a dokumentaci na klíčová slova jako deprecated, insecure, SHA-1 nebo ECB, aby identifikoval varování k rizikovým algoritmům; podle nálezu nastaví rating a uloží odkazy do evidence."
+                },
+                {
+                    "id": "4-4",
+                    "text": "Dokumentace knihovny je přehledná a je rozdělená na sekce podle nabízených funkcí a primitiv; v dokumentaci lze snadno vyhledávat.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Struktura dle use-cases i primitiv, generovaná navigace, verze, vyhledávání, index; rychlé nalezení správné API pro běžné scénáře.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Z detekce dokumentačního systému odhaduje, zda existuje generovaná dokumentace s vyhledáváním; nalezený search (například Sphinx) vede ke splňuje, bez něj zůstává částečně splňuje."
+                },
+                {
+                    "id": "4-5",
+                    "text": "Dokumentace popisuje, k čemu slouží nabízené primitiva/funkce. Například obsahuje odpověď na otázku: Jakým způsobem lze zašifrovat soubor pomocí hesla?",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Kromě API reference existují průvodci scénáři (how-to) s kompletními kroky, včetně správy klíčů, chyb a výkonových aspektů.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Vyhledává v dokumentaci fráze how-to, guide nebo tutorial a sleduje odkazy na scénáře použití; nalezené materiály znamenají splňuje, jejich absence pouze částečně splňuje."
+                },
+                {
+                    "id": "4-6",
+                    "text": "Dokumentace má úvodní stránku, která dává uživateli základní informace o kryptografii (případně odkazuje na důvěryhodný zdroj) a popisuje, jak implementovat časté kryptografické scénáře.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Úvod shrnuje základy a správné postupy, případně odkazuje na respektované zdroje; udržuje se konzistentně s verzemi knihovny.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Detekuje úvodní či overview sekce a odkazy na doporučené postupy, aby doložil základní orientační materiály; silné signály vedou ke splňuje, chybějící k částečně splňuje."
+                },
+                {
+                    "id": "4-7",
+                    "text": "Neoficiální zdroje (Google, Stack Overflow, GitHub Copilot, apod.) neobsahují systematicky nesprávné ukázky kódu nebo odpovědi na otázky.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Proveď rychlý průzkum kvality externích odpovědí; pokud existuje častá mis-use, knihovna by měla mít vlastní FAQ/guide s nápravou.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Automat sbírá externí odkazy z README a wiki, ale neumí posoudit kvalitu neoficiálních zdrojů, takže výsledek zůstává konzervativně částečně splňuje."
+                }
+            ]
+        },
+        {
+            "id": "5-sec:api",
+            "title": "Kvalitní a bezpečný návrh kryptografického API",
+            "questions": [
+                {
+                    "id": "5-1",
+                    "text": "API knihovny musí být dostatečně mocné a flexibilní, aby pokrylo všechny běžné operace, které bude uživatel potřebovat.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Zhodnoť pokrytí běžných scénářů (šifrování, podpisy, KDF, PRNG, klíčový management) bez nutnosti nebezpečných obcházek či ručního „lepení“.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Skript kontroluje, zda repozitář obsahuje hlavičky jako evp.h, aes.h, rsa.h, ec.h, ssl.h nebo rand.h; každá nalezená hlavička se uloží jako důkaz pokrytí běžných kryptografických operací a vede k hodnocení splňuje."
+                },
+                {
+                    "id": "5-2",
+                    "text": "API knihovny pro běžné scénáře používá abstrakce, které jsou pro uživatele srozumitelné.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Nabízí bezpečné high-level funkce (encrypt_file, sign_message, verify) s jasnými parametry a rozumnými defaulty, snížení rizika mis-use.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Hledá přítomnost high-level abstrakcí prostřednictvím souborů evp.h, ssl.h a x509.h; podle toho, kolik z nich se najde, posuzuje dostupnost přátelských vrstev a rozhoduje mezi splňuje a částečně splňuje."
+                },
+                {
+                    "id": "5-3",
+                    "text": "Výchozí hodnoty nespecifikovaných parametrů jsou bezpečné a dobře popsané.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Defaulty musí volit moderní algoritmy (AEAD, moderní křivky), dostatečné délky klíčů, bezpečné režimy a iterace; dokumentace je explicitní.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Skript sleduje existenci ssl.h, konfiguračních souborů openssl.cnf a dokumentace s výrazy default, preset nebo seclevel; silný nález (konfigurace nebo detailní dokumentace) vede ke splnění, pouhé zmínky pouze k částečnému výsledku, absence k chybějící evidenci."
+                },
+                {
+                    "id": "5-4",
+                    "text": "Knihovna dává k dispozici kryptograficky silný generátor (pseudo)náhodných čísel (CSPRNG) a uživatele navádí k jeho (implicitnímu) použití.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "API defaultně využívá systémový CSPRNG/HW entropy; explicitní rozhraní umožní bezpečné použití bez ručního seedování.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Prohledává repozitář po rand.h a přes GitHub code search hledá volání RAND_bytes; pokud najde CSPRNG rozhraní nebo jejich použití, vrací splňuje, jinak nesplňuje."
+                },
+                {
+                    "id": "5-5",
+                    "text": "Chyby, které knihovna produkuje, jsou formulovány pro vývojáře pochopitelným způsobem.",
+                    "rating": null,
+                    "note": "",
+                    "category": "must have",
+                    "description": "Chybové kódy/výjimky nesmí leakovat citlivé informace, ale mají být akční (co opravit). Rozlišuj validace vstupů, kryptografické chyby a runtime.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Hledá soubor err.h a výskyty funkce ERR_error_string, které mapují chybové kódy na text; nálezy znamenají splňuje, absence vede k částečně splňuje."
+                },
+                {
+                    "id": "5-6",
+                    "text": "Knihovna zpřístupňuje funkce, které explicitně generují klíče, IV, apod.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "API obsahuje bezpečné generátory klíčů/IV/salt s garantovanou kvalitou náhodnosti a správnými délkami; podporuje bezpečné serializace.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Vyhledává funkce EVP_PKEY_keygen, RSA_generate_key_ex, EC_KEY_generate_key, EVP_CIPHER_CTX_ctrl a RAND_bytes a doplňuje odkazy na související hlavičky; nalezené volání dokládá práci s generováním klíčů a IV, a proto vrací splňuje."
+                },
+                {
+                    "id": "5-7",
+                    "text": "Implementace knihovny za doby běhu kontroluje správnost volání a jejich argumentů.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Runtime guardrails: ověřování velikostí, formátů, režimů, parametrů; odmítnutí známých slabých kombinací; assert-like checks i v release buildu.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Skript hledá volání OPENSSL_assert a ossl_assert jako proxy pro runtime guardrails; signál existuje, ale heuristika otázku vždy ponechá na částečně splňuje, pouze přidává evidenci pokud bylo něco nalezeno."
+                },
+                {
+                    "id": "5-8",
+                    "text": "Pokud knihovna používá abstrakce vyšší úrovně („task-based cryptography“), lze snadno dohledat, jaké algoritmy, parametry a kódování jsou používány.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Transparentnost: mapování high-level úkonů na konkrétní primitiva a parametry, aby šlo auditovat bezpečnost a interoperabilitu.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Prochází dokumentaci i evp.h na zmínky o mapování abstrakcí na konkrétní algoritmy nebo providery; i při nálezu vrací pouze částečně splňuje, protože automat neumí ověřit úplnost mapování."
+                },
+                {
+                    "id": "5-9",
+                    "text": "Pokud knihovna používá abstrakce vyšší úrovně („task-based cryptography“), lze i přesto konfigurovat volbu parametrů; způsob, kterým to je možné udělat, by měl vyžadovat větší úsilí a uživatel by měl být upozorněn na to, které parametry jsou nebezpečné a jaké předpoklady musí být splněny (např. kryptografická náhodnost IV).",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Umožni override bezpečných defaultů, ale s „friction“ (explicitní volby, varování v dokumentaci) a validací nebezpečných hodnot.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Hledá řetězce deprecated, insecure nebo LEGACY a spoléhá se na konfigurační soubory, aby zachytil možnost override parametrů; bez ohledu na výsledek vrací konzervativně částečně splňuje, pouze doplní evidenci."
+                },
+                {
+                    "id": "5-10",
+                    "text": "Pokud rozhraní knihovny programátorovi umožňuje použít nebezpečný algoritmus nebo parametr, jméno identifikátoru v kódu tomu odpovídá.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Pojmenuj riskantní volby jednoznačně (e.g., use_insecure_sha1), nikoli neutrálně; přidej dokumentované varování a deprecated tag, kde je to možné.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Používá code search na kombinace jako \"MD5 deprecated\", \"SHA1 deprecated\" nebo \"RC4 deprecated\"; nálezy indikují pojmenování nebezpečných voleb a heuristika vrací částečně splňuje s odkazy."
+                },
+                {
+                    "id": "5-11",
+                    "text": "Knihovna vystavuje striktně typované API.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Typový systém brání záměně parametrů (klíč vs. IV), používá novétypy/opaque typy pro citlivá data a bezpečné výchozí konstrukce.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Kontroluje přítomnost hlaviček cipher.h, evp.h a ec.h, které naznačují použití opaque struktur v C API; protože striktní typová bezpečnost v C není dosažitelná, heuristika vždy vrací částečně splňuje."
+                },
+                {
+                    "id": "5-12",
+                    "text": "Knihovna vystavuje API v jazyce s podporou pro vysokoúrovňové mechanismy zpracování chyb, tj. výjimky, příp. monadické typy (Result v Rustu, std::expected v C++, apod.).",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Volba chybových mechanismů pomáhá bezpečnému zachycení a reakci; nekóduj chyby jako málo výstižné návratové kódy.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Konstatuje, že jazyk C pracuje s návratovými kódy místo výjimek, a proto otázku vždy hodnotí částečně splňuje s odpovídající poznámkou."
+                },
+                {
+                    "id": "5-13",
+                    "text": "Jednotlivé kroky pro provedení jedné kryptografické operace jsou pokud možno sloučeny do jednoho volání, případně zřetězitelné v tzv. plynulém rozhraní („fluent interface“).",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Sniž riziko mis-use minimalizací kroků a jasným tokem operací; fluent API musí být zároveň auditovatelné a explicitní v klíčových volbách.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Vzhledem k procedurálnímu charakteru C API skript automaticky vrací částečně splňuje a přidává vysvětlení ke fluent rozhraním."
+                },
+                {
+                    "id": "5-14",
+                    "text": "Knihovna dává k dispozici pomocné funkce, které neslouží přímo k vykonání kryptografických operací, ale mají za účel je usnadnit nebo dodat zabezpečení.",
+                    "rating": null,
+                    "note": "",
+                    "category": "good to have",
+                    "description": "Helpery pro bezpečné mazání paměti, constant-time porovnání, bezpečné formáty klíčů, timeouts/limits; dokumentuj jejich správné použití.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Vyhledává funkce CRYPTO_memcmp, OPENSSL_cleanse, constant time compare a timingsafe_memcmp; jejich nalezení dokládá pomocné bezpečnostní funkce a vede ke splňuje, jinak vrací částečně splňuje."
+                },
+                {
+                    "id": "5-15",
+                    "text": "API knihovny dodržuje bezpečnostní standardy použitého jazyka, pokud takové jsou.",
+                    "rating": null,
+                    "note": "",
+                    "category": "nice to have",
+                    "description": "Respektuj bezpečnostní guidelines pro jazyk/platformu (např. Rust cryptography guidelines, Java Cryptography Architecture best practices).",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Skript hledá zmínky o standardech MISRA nebo CERT C a při nálezu vrací částečně splňuje s odkazy na nalezené soubory; absence zmínek znamená částečně splňuje bez důkazů."
+                },
+                {
+                    "id": "5-16",
+                    "text": "Knihovna dává k dispozici testovací mód, ve kterém je možné použít slabší bezpečnost.",
+                    "rating": null,
+                    "note": "",
+                    "category": "nice to have",
+                    "description": "Test-mód je jasně oddělen od produkce (feature flag, build profile), nelze jej neúmyslně zapnout v produkci a je výrazně dokumentován.",
+                    "heuristic_rating": true,
+                    "evidence": "",
+                    "heuristic": "Code search na řetězce FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION a test mode vyhodnocuje, zda existuje oddělený testovací režim; nalezené odkazy vedou k částečně splňuje, absence ponechá stejné hodnocení bez evidence."
+                }
+            ]
+        }
+    ]
+}

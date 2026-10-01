@@ -1,0 +1,45 @@
+# NÚKIB OSS reviewer — production compose (krok 10)
+#
+# Usage:
+#   cp .env.example .env   # set PILOT_ACCESS_CODE, GITHUB_TOKEN, PUBLIC_BASE_URL
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# HTTPS: put Caddy (or nginx) in front — see docs/DEPLOY.md and Caddyfile.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${REVIEW_PUBLISH_PORT:-8000}:8000"
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GH_TOKEN: ${GH_TOKEN:-}
+      PILOT_ACCESS_CODE: ${PILOT_ACCESS_CODE:?set PILOT_ACCESS_CODE}
+      PILOT_SESSION_SECRET: ${PILOT_SESSION_SECRET:-}
+      PILOT_COOKIE_SECURE: ${PILOT_COOKIE_SECURE:-true}
+      PILOT_CODE_ENABLED: "true"
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/review.db}
+      REVIEW_SERVICE_HOST: 0.0.0.0
+      REVIEW_SERVICE_PORT: 8000
+      REVIEW_SERVER_RELOAD: "false"
+      REVIEW_LOG_LEVEL: ${REVIEW_LOG_LEVEL:-INFO}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+    volumes:
+      - review-data:/data
+      - review-artifacts:/app/data/artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    command: >
+      python -m uvicorn server:app
+      --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
+
+volumes:
+  review-data:
+  review-artifacts:

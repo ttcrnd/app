@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.local/schema/form_schema.json",
+  "title": "OSS Software Review Form v2",
+  "type": "object",
+  "required": [
+    "title",
+    "version",
+    "language",
+    "sections"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    },
+    "rating_options": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "scoring": {
+      "type": "object"
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "questions"
+        ],
+        "properties": {
+          "id": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "meta": {
+            "type": "object"
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "text",
+                "rating",
+                "note",
+                "category",
+                "description",
+                "evidence"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "rating": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "nehodnoceno",
+                        "splňuje",
+                        "částečně splňuje",
+                        "nesplňuje",
+                        ""
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "note": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "evidence": {
+                  "type": "string"
+                },
+                "review_state": {
+                  "type": "string",
+                  "enum": [
+                    "AUTO",
+                    "CONFIRM",
+                    "MANUAL"
+                  ]
+                },
+                "checked": {
+                  "type": "boolean"
+                },
+                "checked_source": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "manual",
+                    ""
+                  ]
+                },
+                "requires_confirmation": {
+                  "type": "boolean"
+                },
+                "auto_suggested_rating": {
+                  "type": "string",
+                  "enum": [
+                    "nehodnoceno",
+                    "splňuje",
+                    "částečně splňuje",
+                    "nesplňuje"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,38 @@
+# Locked minimal dependency set for this repo
+# Install with: pip install -r requirements.txt
+
+# HTTP client used in 4.py
+requests>=2.31.0,<3
+
+# Testing
+pytest>=7.4.0,<9
+
+# JSON Schema validation
+jsonschema>=4.19.0,<5
+
+# Web server
+fastapi>=0.110,<1
+uvicorn[standard]>=0.24,<1
+sse-starlette>=2.0.0
+
+# Persistence (SQLite default; Postgres via DATABASE_URL)
+SQLAlchemy>=2.0.25,<3
+alembic>=1.13.0,<2
+
+# PDF generation
+reportlab>=3.6.12
+
+# Ed25519 signed evaluation export (krok 12)
+cryptography>=42,<46
+
+# Code quality tooling
+black>=24.3.0
+ruff>=0.6.0
+pre-commit>=3.7.0,<5
+mypy>=1.11.0,<2
+
+# FastAPI / Starlette TestClient backend (Starlette 1.6+ prefers httpx2)
+httpx2>=2.0,<3
+
+pyinstrument
+psutil
