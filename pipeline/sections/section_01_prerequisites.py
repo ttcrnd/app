@@ -362,6 +362,21 @@ def evaluate_q_1_1(owner: str, repo: str, ctx: dict) -> tuple[list, str, str]:
     registry_ok = bool(registry.get("matched"))
     has_sig_asset = bool(ctx.get("sig_assets") or attest.get("has_signal"))
     has_latest_release = any(x.get("type") == "latest_release" for x in dukazy)
+
+    # A fork is exactly what 1-1 guards against ("not a personal fork or a
+    # fraudulent copy"); verified owners/signatures on the fork don't change that.
+    if repo_meta.get("fork"):
+        source = repo_meta.get("source") or repo_meta.get("parent") or {}
+        source_name = source.get("full_name") or "neznámý zdroj"
+        source_url = source.get("html_url")
+        if source_url:
+            dukazy.append({"type": "fork_source", "url": source_url})
+        note = (
+            f"Repozitář je fork ({source_name}). Ověřte, že hodnotíte kanonický zdroj "
+            "knihovny, ne osobní fork nebo kopii — bez toho nelze potvrdit pravost."
+        )
+        return dukazy, RATING_PARTIAL, note
+
     if owner_verified or has_signed_commit or (registry_ok and has_sig_asset):
         rating = RATING_MEETS
         note = text("script1", "evaluate_q_1_1", "note_owner_verified")
@@ -625,6 +640,8 @@ def build_output(owner, repo, token):
             "watchers_count": repo_meta.get("watchers_count"),
             "archived": repo_meta.get("archived"),
             "disabled": repo_meta.get("disabled"),
+            "fork": repo_meta.get("fork"),
+            "fork_source": (repo_meta.get("source") or {}).get("full_name"),
             "topics": repo_meta.get("topics"),
             "size_kb": repo_meta.get("size"),
             "has_downloads": repo_meta.get("has_downloads"),

@@ -138,13 +138,13 @@ _STRINGS: dict[str, Any] = {
     },
     "script2": {
         "evaluate_q_2_1": {
-            "note": "Commity posledních 12 měsíců: {commits}, počet release: {releases}.",
+            "note": "Commity posledních 12 měsíců: {commits}, release za 12 měsíců: {releases}.",
         },
         "evaluate_q_2_1a": {
             "note": "Poslední release: {release_name}, datum: {release_date}, prerelease={is_prerelease}.",
         },
         "evaluate_q_2_1b": {
-            "note": "Commity: {commits}, issues (12m): {issues}, releasy: {releases}.",
+            "note": "Commity: {commits}, issues (12m): {issues}, releasy (12m): {releases}.",
         },
         "evaluate_q_2_1c": {
             "note": "Odhad reakce správců na issues (12m): {responses}/{issues} (~{percentage:.1f} %).",

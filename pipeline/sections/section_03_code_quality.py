@@ -85,8 +85,10 @@ def gh(url_path: str, query: dict[str, str] | None = None) -> tuple[int, dict[st
     return status, (j if isinstance(j, dict) else {})
 
 
-def gh_paged(url_path: str, per_page: int = 100, max_pages: int = 10) -> list[dict[str, Any]]:
-    items = _gh_paginate(url_path, per_page=per_page, max_pages=max_pages)
+def gh_paged(
+    url_path: str, per_page: int = 100, max_pages: int = 10, list_key: str | None = None
+) -> list[dict[str, Any]]:
+    items = _gh_paginate(url_path, per_page=per_page, max_pages=max_pages, list_key=list_key)
     return [it for it in items if isinstance(it, dict)]
 
 
@@ -118,8 +120,10 @@ def link(path: str) -> str:
 
 
 def has_workflow_keyword(text: str, *keywords: str) -> bool:
+    # Left word boundary so short tokens don't fire inside other words
+    # ("afl" in "waffle", "tsan" in "itsandbox"); "fuzz" still matches "fuzzing".
     t = text.lower()
-    return any(k.lower() in t for k in keywords)
+    return any(re.search(r"(?<![a-z0-9])" + re.escape(k.lower()), t) for k in keywords)
 
 
 def collect_repo_meta() -> dict[str, Any]:
@@ -219,7 +223,10 @@ def collect_readme_badges() -> dict[str, Any]:
 
 
 def collect_actions_and_checks() -> dict[str, Any]:
-    workflows = gh_paged(f"/repos/{OWNER}/{REPO_NAME}/actions/workflows", per_page=100)
+    # The endpoint returns {"total_count": N, "workflows": [...]}, not a bare list.
+    workflows = gh_paged(
+        f"/repos/{OWNER}/{REPO_NAME}/actions/workflows", per_page=100, list_key="workflows"
+    )
     save_raw("actions_workflows", workflows)
     out = {
         "workflows": [],
@@ -236,6 +243,23 @@ def collect_actions_and_checks() -> dict[str, Any]:
     for wf in workflows:
         path = wf.get("path")
         if not path:
+            continue
+        if wf.get("state") != "active":
+            continue  # disabled_manually / disabled_inactivity don't run on changes
+        if path.startswith("dynamic/"):
+            # GitHub-managed "default setup" workflows have no YAML in the repo
+            # (blob URL would 404); default-setup CodeQL is still real SAST.
+            entry = {
+                "name": wf.get("name"),
+                "state": wf.get("state"),
+                "path": path,
+                "url": wf.get("html_url") or f"https://github.com/{OWNER}/{REPO_NAME}/actions",
+                "hints": [],
+            }
+            if path.startswith("dynamic/github-code-scanning"):
+                out["signals"]["sast"] = True
+                entry["hints"].append("sast")
+            out["workflows"].append(entry)
             continue
         yml = get_file_text(path)
         entry = {
@@ -268,7 +292,6 @@ def collect_actions_and_checks() -> dict[str, Any]:
             if has_workflow_keyword(
                 lowered,
                 "ctest",
-                "cmake --build",
                 "make test",
                 "pytest",
                 "ctest --output-on-failure",

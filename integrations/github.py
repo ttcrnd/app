@@ -61,7 +61,14 @@ def paginate(
     per_page: int = 100,
     max_pages: int = 10,
     accept_preview: bool = False,
+    list_key: str | None = None,
 ) -> list[Any]:
+    """Collect items across pages.
+
+    Most list endpoints return a bare JSON array. Some (e.g. ``/actions/workflows``
+    → ``{"total_count": N, "workflows": [...]}``) wrap the array in an object;
+    pass ``list_key`` to unwrap it, otherwise such responses yield nothing.
+    """
     items: list[Any] = []
     page = 1
     params = dict(params or {})
@@ -70,6 +77,8 @@ def paginate(
         status, data, _ = get(path, params=params, token=token, accept_preview=accept_preview)
         if status != 200:
             break
+        if list_key and isinstance(data, dict):
+            data = data.get(list_key)
         if not isinstance(data, list) or not data:
             if isinstance(data, list):
                 items.extend(data)
@@ -152,7 +161,8 @@ def actions_exists(owner: str, repo: str, token: str | None = None) -> bool:
     status, data, _ = get(
         f"/repos/{owner}/{repo}/actions/runs", params={"per_page": 1}, token=token
     )
-    if isinstance(data, dict) and ("workflow_runs" in data or int(data.get("total_count", 0)) >= 0):
+    # Any dict used to pass (`>= 0`), including an error body on 403/404.
+    if status == 200 and isinstance(data, dict) and int(data.get("total_count") or 0) > 0:
         return True
 
     items = search_code(owner, repo, "path:.github/workflows", per_page=1, token=token)
@@ -173,6 +183,22 @@ def get_branch_protection(
     if status == 200 and isinstance(data, dict):
         return {"status": status, "data": data}
     return {"status": status, "data": None}
+
+
+def get_branch_rule_types(
+    owner: str, repo: str, branch: str, token: str | None = None
+) -> dict[str, Any]:
+    """Active repository-ruleset rule types for a branch.
+
+    Unlike /branches/{b}/protection (admin-only → 404 for third-party repos),
+    /rules/branches/{b} is readable for any public repo. Typical types:
+    "required_status_checks", "pull_request", "non_fast_forward".
+    """
+    status, data, _ = get(f"/repos/{owner}/{repo}/rules/branches/{quote_path(branch)}", token=token)
+    if status == 200 and isinstance(data, list):
+        types = sorted({r.get("type") for r in data if isinstance(r, dict) and r.get("type")})
+        return {"available": True, "status": status, "types": types}
+    return {"available": False, "status": status, "types": []}
 
 
 def quote_path(segment: str) -> str:

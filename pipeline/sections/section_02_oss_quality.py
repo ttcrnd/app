@@ -78,16 +78,79 @@ def gh_repo(owner, repo):
     return gh_get(f"/repos/{owner}/{repo}")[0]
 
 
+class GitHubApiError(RuntimeError):
+    """A GitHub call failed (rate limit, auth, 5xx…) — the answer is unknown, not 'no'."""
+
+    def __init__(self, path: str, status: int, data):
+        message = data.get("message") if isinstance(data, dict) else None
+        super().__init__(f"HTTP {status} na {path}" + (f" ({message})" if message else ""))
+        self.status = status
+
+
 def gh_latest_release(owner, repo):
-    data, _ = gh_get(f"/repos/{owner}/{repo}/releases/latest")
-    if isinstance(data, dict) and data.get("message") == "Not Found":
-        return None
+    path = f"/repos/{owner}/{repo}/releases/latest"
+    status, data, _ = _gh_get(path)
+    if status == 404:
+        return None  # repo has no published release
+    if status != 200 or not isinstance(data, dict) or not data.get("tag_name"):
+        raise GitHubApiError(path, status, data)
     return data
 
 
 def gh_all_releases(owner, repo, limit=100):
-    data, _ = gh_get(f"/repos/{owner}/{repo}/releases", {"per_page": min(100, limit)})
-    return data or []
+    path = f"/repos/{owner}/{repo}/releases"
+    status, data, _ = _gh_get(path, params={"per_page": min(100, limit)})
+    if status != 200 or not isinstance(data, list):
+        # Previously the error body (a 2-key dict) leaked through as the "list",
+        # so len(...) >= 2 rated an API failure as "has releases".
+        raise GitHubApiError(path, status, data)
+    return data
+
+
+def fetch_releases(owner, repo):
+    """(releases, latest_release, error). Each call is independent, so a failing
+    /releases/latest doesn't discard a successfully loaded list (and vice versa).
+    `error` is set when either call failed — the caller must then not treat
+    missing data as "no releases"."""
+    errors = []
+    releases, latest_rel = [], None
+    try:
+        releases = gh_all_releases(owner, repo, 100)
+    except GitHubApiError as exc:
+        errors.append(str(exc))
+    try:
+        latest_rel = gh_latest_release(owner, repo)
+    except GitHubApiError as exc:
+        errors.append(str(exc))
+    return releases, latest_rel, ("; ".join(errors) or None)
+
+
+def is_project_active(commits_last_year, releases_last_year):
+    """2-1 heuristic. Only releases from the last 12 months count — an abandoned
+    project with a few ancient releases must not look "active"."""
+    return commits_last_year >= 12 or len(releases_last_year or []) >= 2
+
+
+def _parse_gh_ts(value):
+    if not value:
+        return None
+    try:
+        return datetime.datetime.strptime(value, ISO).replace(tzinfo=datetime.timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def releases_within(releases, days=365):
+    """Published (non-draft) releases from the last `days` days."""
+    cutoff = NOW - datetime.timedelta(days=days)
+    out = []
+    for rel in releases or []:
+        if not isinstance(rel, dict) or rel.get("draft"):
+            continue
+        published = _parse_gh_ts(rel.get("published_at"))
+        if published and published >= cutoff:
+            out.append(rel)
+    return out
 
 
 def gh_commits_since(owner, repo, since_days=365, branch=None, limit=3000):
@@ -159,8 +222,10 @@ def gh_repo_file_exists(owner, repo, path, ref=None):
 
 
 def gh_actions_exists(owner, repo):
-    data, _ = gh_get(f"/repos/{owner}/{repo}/actions/runs", {"per_page": 1})
-    if isinstance(data, dict) and ("workflow_runs" in data or data.get("total_count", 0) >= 0):
+    # `total_count >= 0` used to be true for any dict — including a 403/404
+    # error body — so an API failure counted as "has CI".
+    status, data, _ = _gh_get(f"/repos/{owner}/{repo}/actions/runs", params={"per_page": 1})
+    if status == 200 and isinstance(data, dict) and int(data.get("total_count") or 0) > 0:
         return True
     items = gh_search_code(owner, repo, "path:.github/workflows")
     return len(items) > 0
@@ -276,6 +341,38 @@ def _filter_osv_vulns(vulns: list) -> tuple[list, int]:
     return filtered, sev_hits
 
 
+# CONTRIBUTING wording that makes tests a requirement for contributions (2-7).
+_TESTS_REQUIRED_RE = re.compile(
+    r"\b(must|should|needs? to|are required to|is required to)\s+"
+    r"(include|add|have|contain|provide|come with|be accompanied by)\s+(\w+\s+){0,3}tests?\b"
+    r"|\btests?\s+(are|is)\s+(required|mandatory)\b"
+    r"|\b(include|add|write)\s+(\w+\s+){0,2}tests?\s+(for|covering)\s+(your|any|all|new|the)\b"
+    # Double negative = requirement: "PRs without tests will not be merged / will be rejected".
+    r"|\b(pull requests?|PRs?|patches|changes|contributions)\s+(without|lacking)\s+(\w+\s+)?tests?\s+"
+    r"(?:(?:will|would|can|are|is)\s*(?:not|n't)\s+be\s+(?:merged|accepted)"
+    r"|won't\s+be\s+(?:merged|accepted)"
+    r"|(?:will|would)\s+be\s+(?:rejected|closed))",
+    re.IGNORECASE,
+)
+# A match preceded by these (same sentence, close by) is a negation or condition:
+# "do not need to include tests", "no tests are required", "if you add tests for…".
+_TESTS_NEGATION_RE = re.compile(
+    r"\b(not|no|never|don't|doesn't|isn't|aren't|if|unless)\b|n't\b", re.I
+)
+
+
+def tests_required_in_text(text: str | None) -> bool:
+    """True when some sentence states tests are *required* (negations/conditions skipped)."""
+    if not text:
+        return False
+    for m in _TESTS_REQUIRED_RE.finditer(text):
+        window = text[max(0, m.start() - 40) : m.start()]
+        window = re.split(r"[.!?\n]", window)[-1]  # only the current sentence
+        if not _TESTS_NEGATION_RE.search(window):
+            return True
+    return False
+
+
 def _read_repo_text(owner: str, repo: str, path: str, ref: str | None) -> str | None:
     import base64
 
@@ -359,17 +456,26 @@ def evaluate_q_2_1(ctx):
     Collects commit count over the last 12 months and the number of releases.
     Heuristic: active if commits >= 12 or releases >= 2. Returns (rating, note, evidence URLs).
     """
+    recent = ctx.get("releases_last_year", ctx["releases"])
+    note = text(
+        "script2",
+        "evaluate_q_2_1",
+        "note",
+        commits=ctx["commits_cnt"],
+        releases=len(recent),
+    )
     return (
         (RATING_MEETS if ctx["project_active"] else RATING_PARTIAL),
-        text(
-            "script2",
-            "evaluate_q_2_1",
-            "note",
-            commits=ctx["commits_cnt"],
-            releases=len(ctx["releases"]),
-        ),
+        note + _releases_unknown_note(ctx),
         f"{ctx['urls']['repo']}\n{ctx['urls']['releases']}",
     )
+
+
+def _releases_unknown_note(ctx) -> str:
+    err = ctx.get("releases_error")
+    if not err:
+        return ""
+    return f" Release nelze ověřit — chyba GitHub API ({err}); nejde o „nesplňuje“, ověřte ručně."
 
 
 @_eval_log
@@ -377,11 +483,6 @@ def evaluate_q_2_1a(ctx):
     """
     2-1a: "Latest public release ≤ 1 year (not a prerelease)" - evaluates release date and prerelease flag.
     """
-    meets = (
-        RATING_MEETS
-        if ctx["last_release_ok"]
-        else (RATING_PARTIAL if ctx["latest_rel"] else RATING_NOT_MET)
-    )
     note = text(
         "script2",
         "evaluate_q_2_1a",
@@ -390,25 +491,36 @@ def evaluate_q_2_1a(ctx):
         release_date=ctx["last_rel_date_str"],
         is_prerelease=ctx["last_rel_is_prerelease"],
     )
+    if ctx.get("releases_error"):
+        return RATING_PARTIAL, note + _releases_unknown_note(ctx), ctx["urls"]["releases"]
+    meets = (
+        RATING_MEETS
+        if ctx["last_release_ok"]
+        else (RATING_PARTIAL if ctx["latest_rel"] else RATING_NOT_MET)
+    )
     return meets, note, ctx["urls"]["releases"]
 
 
 @_eval_log
 def evaluate_q_2_1b(ctx):
-    """2-1b: Any activity within the year (commit/issue/release present)."""
-    any_activity = ctx["commits_cnt"] > 0 or ctx["issues_count"] > 0 or len(ctx["releases"]) > 0
-    return (
-        (RATING_MEETS if any_activity else RATING_NOT_MET),
-        text(
-            "script2",
-            "evaluate_q_2_1b",
-            "note",
-            commits=ctx["commits_cnt"],
-            issues=ctx["issues_count"],
-            releases=len(ctx["releases"]),
-        ),
-        ctx["urls"]["repo"],
+    """2-1b: Any activity within the year (commit/issue/release from the last 12 months)."""
+    recent = ctx.get("releases_last_year", ctx["releases"])
+    any_activity = ctx["commits_cnt"] > 0 or ctx["issues_count"] > 0 or len(recent) > 0
+    note = text(
+        "script2",
+        "evaluate_q_2_1b",
+        "note",
+        commits=ctx["commits_cnt"],
+        issues=ctx["issues_count"],
+        releases=len(recent),
     )
+    if any_activity:
+        rating = RATING_MEETS
+    elif ctx.get("releases_error"):
+        rating = RATING_PARTIAL  # releases unknown — can't claim "no activity"
+    else:
+        rating = RATING_NOT_MET
+    return rating, note + _releases_unknown_note(ctx), ctx["urls"]["repo"]
 
 
 @_eval_log
@@ -436,14 +548,16 @@ def evaluate_q_2_1c(ctx):
 @_eval_log
 def evaluate_q_2_1d(ctx):
     """2-1d: Latest release is not marked as a prerelease (tag/name)."""
-    meets = (
-        RATING_MEETS if ctx["latest_rel"] and not ctx["last_rel_is_prerelease"] else RATING_PARTIAL
-    )
     note = text(
         "script2",
         "evaluate_q_2_1d",
         "note",
         release_name=ctx["last_rel_name"] or "n/a",
+    )
+    if ctx.get("releases_error"):
+        return RATING_PARTIAL, note + _releases_unknown_note(ctx), ctx["urls"]["releases"]
+    meets = (
+        RATING_MEETS if ctx["latest_rel"] and not ctx["last_rel_is_prerelease"] else RATING_PARTIAL
     )
     return meets, note, ctx["urls"]["releases"]
 
@@ -597,12 +711,50 @@ def evaluate_q_2_6(ctx):
 
 @_eval_log
 def evaluate_q_2_7(ctx):
-    """2-7: Tests and run instructions - heuristic from test presence and CI."""
-    return (
-        (RATING_MEETS if ctx["has_tests"] else RATING_PARTIAL),
-        text("script2", "evaluate_q_2_7", "note", has_tests=ctx["has_tests"]),
-        (ctx["urls"]["tests"] if ctx["has_tests"] else ctx["urls"]["repo"]),
+    """2-7: Test suite exists AND tests are required for new contributions.
+
+    The criterion has two halves; test presence alone used to rate MEETS.
+    Now MEETS needs both: tests run on PRs before merge (Scorecard CI-Tests,
+    required status checks via branch protection or rulesets) and an explicit
+    requirement for tests in the contribution guide.
+    """
+    has_tests = bool(ctx["has_tests"])
+    sc_map = ctx.get("scorecard_map") or {}
+    ci_tests = (sc_map.get("checks") or {}).get("CI-Tests")
+    bp = ctx.get("branch_protection") or {}
+    status_checks = bp.get("required_status_checks")
+    rule_types = (ctx.get("branch_rules") or {}).get("types") or []
+
+    pr_check_sources = []
+    if score_meets(ci_tests, 7):
+        pr_check_sources.append(f"Scorecard CI-Tests={ci_tests}")
+    if isinstance(status_checks, list) and status_checks:
+        pr_check_sources.append(f"branch protection: {len(status_checks)} povinných status checks")
+    if "required_status_checks" in rule_types:
+        pr_check_sources.append("ruleset: required_status_checks")
+    tests_run_on_prs = bool(pr_check_sources)
+    tests_required = bool(ctx.get("tests_required_in_contributing"))
+
+    note = (
+        f"Testy v repu: {'ano' if has_tests else 'nenalezeny'}. "
+        f"Testy povinně běží u PR před mergem: "
+        f"{'ano (' + ', '.join(pr_check_sources) + ')' if tests_run_on_prs else 'neověřeno'}. "
+        f"Požadavek na testy u nových příspěvků: "
+        f"{'ano (CONTRIBUTING)' if tests_required else 'nenalezen v CONTRIBUTING'}."
     )
+    if has_tests and tests_run_on_prs and tests_required:
+        rating = RATING_MEETS
+    else:
+        rating = RATING_PARTIAL
+        if has_tests:
+            note += " Existence testů nestačí — vynucení u PR ověřte ručně."
+
+    evidence = [ctx["urls"]["tests"] if has_tests else ctx["urls"]["repo"]]
+    if ctx.get("contributing_url"):
+        evidence.append(ctx["contributing_url"])
+    if sc_map.get("urls", {}).get("CI-Tests"):
+        evidence.append(sc_map["urls"]["CI-Tests"])
+    return rating, note, "\n".join(evidence)
 
 
 @_eval_log
@@ -690,8 +842,17 @@ def evaluate_q_2_9(ctx):
 def evaluate_q_2_10(ctx):
     """2-10: Thorough review by core maintainers — CODEOWNERS + PR sample."""
     pr = ctx.get("pr_stats") or {}
-    note = text("script2", "evaluate_q_2_10", "note")
-    evidence = ctx["urls"]["codeowners"]
+    codeowners_url = ctx["urls"].get("codeowners")
+    if codeowners_url:
+        note = "CODEOWNERS nalezen. " + text("script2", "evaluate_q_2_10", "note")
+        evidence = codeowners_url
+    else:
+        # Used to link a CODEOWNERS URL without checking it exists (→ 404 evidence).
+        note = (
+            "CODEOWNERS nenalezen nebo nedostupný (CODEOWNERS, .github/, docs/). "
+            "Úzký tým revidentů z veřejných dat nelze doložit."
+        )
+        evidence = ctx["urls"]["repo"]
     if pr.get("available") and pr.get("sampled", 0) >= 5:
         note = (
             f"{note} PR sample: median_reviewers={pr.get('median_reviewers')}, "
@@ -966,8 +1127,10 @@ def evaluate_open_source_section(owner, repo, skeleton_section):
     repo_info = gh_repo(owner, repo) or {}
     default_branch = repo_info.get("default_branch", "master")
     effective_ref = TARGET_REF or default_branch
-    releases = gh_all_releases(owner, repo, 100)
-    latest_rel = gh_latest_release(owner, repo)
+    releases, latest_rel, releases_error = fetch_releases(owner, repo)
+    if releases_error:
+        progress(f"[WARN] Release se nepodařilo načíst: {releases_error}")
+    releases_last_year = releases_within(releases, 365)
 
     progress(f"Stahuji commity za 12 měsíců (ref={effective_ref})…")
     commits_365 = gh_commits_since(owner, repo, 365, branch=effective_ref, limit=3000)
@@ -1020,6 +1183,7 @@ def evaluate_open_source_section(owner, repo, skeleton_section):
         [
             gh_repo_file_exists(owner, repo, "CONTRIBUTING.md", ref=effective_ref),
             gh_repo_file_exists(owner, repo, ".github/CONTRIBUTING.md", ref=effective_ref),
+            gh_repo_file_exists(owner, repo, "docs/CONTRIBUTING.md", ref=effective_ref),
         ]
     )
     has_coc = any(
@@ -1067,6 +1231,23 @@ def evaluate_open_source_section(owner, repo, skeleton_section):
     # Branch protection (E3)
     bp_raw = gh_api.get_branch_protection(owner, repo, default_branch)
     branch_protection = gh_api.normalize_branch_protection(bp_raw)
+    branch_rules = gh_api.get_branch_rule_types(owner, repo, default_branch)
+
+    # 2-7: does the project *require* tests on contributions? (not just "has tests")
+    contributing_text, contributing_url = None, None
+    for cpath in ("CONTRIBUTING.md", ".github/CONTRIBUTING.md", "docs/CONTRIBUTING.md"):
+        contributing_text = _read_repo_text(owner, repo, cpath, effective_ref)
+        if contributing_text:
+            contributing_url = url_path(owner, repo, cpath)
+            break
+    tests_required_in_contributing = tests_required_in_text(contributing_text)
+
+    # 2-10: GitHub honours CODEOWNERS in exactly these three locations.
+    codeowners_url = None
+    for cpath in ("CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"):
+        if gh_repo_file_exists(owner, repo, cpath, ref=effective_ref):
+            codeowners_url = url_path(owner, repo, cpath)
+            break
 
     # Dependabot / Renovate / lockfiles (E4 / E11)
     progress("Kontroluji Dependabot/Renovate, lockfile a SBOM…")
@@ -1206,7 +1387,7 @@ def evaluate_open_source_section(owner, repo, skeleton_section):
     last_release_ok = bool(
         last_release_date and last_release_date >= one_year_ago and not last_rel_is_prerelease
     )
-    project_active = commits_cnt >= 12 or len(releases) >= 2
+    project_active = is_project_active(commits_cnt, releases_last_year)
     # Percentage over the inspected sample (not raw issue count) so the heuristic stays calibrated.
     maint_sample_size = len(comment_sample)
     maint_response_pct = pct(issues_with_maintainer_response, max(1, maint_sample_size))
@@ -1217,7 +1398,7 @@ def evaluate_open_source_section(owner, repo, skeleton_section):
         "releases": url_releases(owner, repo),
         "issues": url_issues(owner, repo),
         "workflows": url_path(owner, repo, ".github/workflows"),
-        "codeowners": url_path(owner, repo, "CODEOWNERS"),
+        "codeowners": codeowners_url,
         "security": (
             (security_policy.get("security_md_url") if security_policy else None)
             or url_path(owner, repo, "SECURITY.md")
@@ -1238,6 +1419,8 @@ def evaluate_open_source_section(owner, repo, skeleton_section):
         "effective_ref": effective_ref,
         "requested_ref": TARGET_REF,
         "releases": releases,
+        "releases_last_year": releases_last_year,
+        "releases_error": releases_error,
         "latest_rel": latest_rel,
         "commits_cnt": commits_cnt,
         "issues": issues,
@@ -1276,6 +1459,9 @@ def evaluate_open_source_section(owner, repo, skeleton_section):
         "scorecard_raw": scorecard_raw,
         "scorecard_map": scorecard_map,
         "branch_protection": branch_protection,
+        "branch_rules": branch_rules,
+        "contributing_url": contributing_url,
+        "tests_required_in_contributing": tests_required_in_contributing,
         "has_dependabot": has_dependabot,
         "has_renovate": has_renovate,
         "dependabot_url": dependabot_url,
